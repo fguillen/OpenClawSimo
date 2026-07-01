@@ -17,18 +17,12 @@ docker compose up -d
 Set the real hostname in the Traefik router label in
 [docker-compose.yaml](docker-compose.yaml) before deploying.
 
-## Compose files
+## Compose file
 
-| File | When to use |
-| --- | --- |
-| [docker-compose.yaml](docker-compose.yaml) | Base stack. Always. |
-| [docker-compose.browser.yaml](docker-compose.browser.yaml) | Overlay adding a headless Chrome (CDP) sidecar for browser automation. Heavy, opt-in. |
-
-Run the overlay alongside the base file:
-
-```
-docker compose -f docker-compose.yaml -f docker-compose.browser.yaml up -d
-```
+Everything runs from a single [docker-compose.yaml](docker-compose.yaml): the
+`openclaw` service plus a `browser` sidecar (headless Chrome exposing a CDP
+endpoint) for browser automation. The sidecar is heavy — a large image with
+meaningful RAM and CPU cost — but is now included by default.
 
 ## Hardening checklist
 

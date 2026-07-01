@@ -27,17 +27,11 @@ FSN1 host. Full product docs live at https://docs.openclaw.ai.
 5. Deploy. Traefik issues the TLS cert on first request to the hostname.
 6. After boot, exec into the container and run `openclaw doctor` to validate.
 
-## Browser overlay
+## Browser sidecar
 
-To add the headless Chrome sidecar, deploy with both files:
-
-```
-docker compose -f docker-compose.yaml -f docker-compose.browser.yaml up -d
-```
-
-In Dokploy, set the compose path to include both files, or add
-`docker-compose.browser.yaml` as an additional compose file on the app. This is
-heavy and opt-in. Skip it unless you need browser automation.
+The headless Chrome sidecar ships in the base `docker-compose.yaml` and starts
+with the stack — no extra file or Dokploy config needed. It is heavy (large image,
+meaningful RAM and CPU cost), so factor that into host sizing.
 
 ## Updating
 

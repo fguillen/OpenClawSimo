@@ -14,6 +14,8 @@ services:
     env_file: .env
     logging: *default-logging
     stop_grace_period: 30s
+    environment:
+      - BROWSER_CDP_URL=http://browser:9222
     volumes:
       - openclaw-data:/data
     networks:
@@ -25,8 +27,23 @@ services:
       - traefik.http.routers.openclaw.tls.certresolver=letsencrypt
       - traefik.http.services.openclaw.loadbalancer.server.port=8080
 
+  # Headless Chrome sidecar exposing a CDP endpoint so OpenClaw can drive a real
+  # browser, reachable in-network as http://browser:9222. Heavy: large image with
+  # meaningful RAM and CPU cost.
+  browser:
+    image: kasmweb/chrome
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - browser-profile:/home/kasm-user
+    networks:
+      - dokploy-network
+    expose:
+      - "9222"
+
 volumes:
   openclaw-data:
+  browser-profile:
 
 networks:
   dokploy-network:

@@ -17,12 +17,9 @@ There is no build, lint, or test step. Work here means editing compose files,
 
 ```
 cp .env.example .env          # then fill in secrets (see below)
-docker compose up -d          # base stack
+docker compose up -d          # full stack (openclaw + browser sidecar)
 docker compose logs -f openclaw
 docker compose pull && docker compose up -d   # update to a new image
-
-# With the browser sidecar (heavy, opt-in):
-docker compose -f docker-compose.yaml -f docker-compose.browser.yaml up -d
 
 # Validate a running instance:
 docker compose exec openclaw openclaw doctor
@@ -30,17 +27,15 @@ docker compose exec openclaw openclaw doctor
 
 ## Architecture
 
-- **`docker-compose.yaml`** — base stack. One `openclaw` service, persistent
+- **`docker-compose.yaml`** — the whole stack. The `openclaw` service (persistent
   `openclaw-data` volume mounted at `/data`, joined to the external
-  `dokploy-network`. Public exposure is entirely via Traefik labels (TLS via the
-  `letsencrypt` certresolver, container port 8080). The router `Host()` rule
-  contains a placeholder hostname (`claw.example.es`) that must be replaced per
-  deployment.
-- **`docker-compose.browser.yaml`** — opt-in overlay merged on top of the base
-  file. Adds a `kasmweb/chrome` sidecar exposing a CDP endpoint at
-  `http://browser:9222` (in-network only) and wires `BROWSER_CDP_URL` into the
-  openclaw service. Large image, meaningful RAM/CPU cost — omit unless browser
-  automation is needed.
+  `dokploy-network`, public exposure entirely via Traefik labels — TLS via the
+  `letsencrypt` certresolver, container port 8080; the router `Host()` rule
+  contains a placeholder hostname `claw.example.es` that must be replaced per
+  deployment) plus a `browser` service: a `kasmweb/chrome` sidecar exposing a CDP
+  endpoint at `http://browser:9222` (in-network only), wired into openclaw via
+  `BROWSER_CDP_URL`. The sidecar is a large image with meaningful RAM/CPU cost but
+  ships enabled by default.
 - **`.env`** (from `.env.example`) — all runtime config. Provider keys, web-UI
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.
