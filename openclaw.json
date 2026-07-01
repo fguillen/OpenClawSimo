@@ -1,0 +1,9 @@
+{
+  "agents": {
+    "defaults": {
+      "memorySearch": {
+        "enabled": false
+      }
+    }
+  }
+}

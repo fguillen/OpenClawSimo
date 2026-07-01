@@ -33,6 +33,9 @@ services:
       - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-loopback}
       - OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR:-/data/.openclaw}
       - OPENCLAW_WORKSPACE_DIR=${OPENCLAW_WORKSPACE_DIR:-/data/workspace}
+      # Declarative config file (mounted read-only below). Holds settings with no
+      # env-var equivalent, e.g. agents.defaults.memorySearch.enabled=false.
+      - OPENCLAW_CONFIG_PATH=${OPENCLAW_CONFIG_PATH:-/config/openclaw.json}
       # CORS
       - OPENCLAW_ALLOWED_ORIGINS=${OPENCLAW_ALLOWED_ORIGINS:-}
       # Browser sidecar (static, in-network)
@@ -46,6 +49,9 @@ services:
       - WHATSAPP_ALLOW_FROM=${WHATSAPP_ALLOW_FROM:-}
     volumes:
       - openclaw-data:/data
+      # Declarative config, committed to the repo (see OPENCLAW_CONFIG_PATH above).
+      # Kept outside /data so it is not shadowed by the openclaw-data volume.
+      - ./openclaw.json:/config/openclaw.json:ro
     networks:
       - dokploy-network
     # No Traefik labels here: routing and TLS are configured in Dokploy's Domains
