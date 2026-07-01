@@ -5,6 +5,10 @@ FSN1 host. Full product docs live at https://docs.openclaw.ai.
 
 ## Prerequisites
 
+- Host OS **Ubuntu 24.04 LTS** (or 22.04). Do not use pre-release / non-LTS
+  Ubuntu such as 26.04 "resolute" — Docker's apt repo has no packages for that
+  codename, so the Dokploy Docker install fails with
+  `'<version>' not found amongst apt-cache madison results`.
 - A Dokploy host (Docker Swarm) with Traefik v3 configured and a `letsencrypt`
   certresolver.
 - The `dokploy-network` overlay network already present. Dokploy creates it on
