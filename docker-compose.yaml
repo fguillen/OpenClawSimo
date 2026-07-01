@@ -33,7 +33,7 @@ services:
       - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-loopback}
       - OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR:-/data/.openclaw}
       - OPENCLAW_WORKSPACE_DIR=${OPENCLAW_WORKSPACE_DIR:-/data/workspace}
-      # Declarative config file (mounted read-only below). Holds settings with no
+      # Declarative config file (mounted writable below). Holds settings with no
       # env-var equivalent, e.g. agents.defaults.memorySearch.enabled=false.
       - OPENCLAW_CONFIG_PATH=${OPENCLAW_CONFIG_PATH:-/config/openclaw.json}
       # CORS
@@ -49,9 +49,12 @@ services:
       - WHATSAPP_ALLOW_FROM=${WHATSAPP_ALLOW_FROM:-}
     volumes:
       - openclaw-data:/data
-      # Declarative config, committed to the repo (see OPENCLAW_CONFIG_PATH above).
-      # Kept outside /data so it is not shadowed by the openclaw-data volume.
-      - ./openclaw.json:/config/openclaw.json:ro
+      # Declarative config seed, committed to the repo (see OPENCLAW_CONFIG_PATH
+      # above). Must be writable: openclaw's configure.js reads this path, then
+      # writes the normalized config back in-place at boot, so a :ro mount fails
+      # with EROFS. Kept outside /data so it is not shadowed by openclaw-data; the
+      # in-container rewrite is throwaway (Dokploy re-clones from git each deploy).
+      - ./openclaw.json:/config/openclaw.json
     networks:
       - dokploy-network
     # No Traefik labels here: routing and TLS are configured in Dokploy's Domains

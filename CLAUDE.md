@@ -13,6 +13,10 @@ pulled from a registry; its code does not live here.
 There is no build, lint, or test step. Work here means editing compose files,
 `.env` config, and docs.
 
+## Workflow
+
+Always create a git commit after completing a task.
+
 ## Commands
 
 ```
@@ -46,9 +50,13 @@ docker compose exec openclaw openclaw doctor
   meaningful RAM/CPU cost but ships enabled by default.
 - **`openclaw.json`** — committed declarative config for settings that have **no
   env-var equivalent** (env vars only cover keys, auth, paths, channels; things like
-  `agents.defaults.memorySearch.enabled` are config-file only). Mounted read-only at
-  `/config/openclaw.json` and selected via `OPENCLAW_CONFIG_PATH` (default points
-  there). Kept outside the `/data` volume so it is not shadowed by `openclaw-data`.
+  `agents.defaults.memorySearch.enabled` are config-file only). Mounted **writable**
+  at `/config/openclaw.json` and selected via `OPENCLAW_CONFIG_PATH` (default points
+  there) — openclaw's `configure.js` reads this path and rewrites the normalized
+  config back in-place at boot, so a `:ro` mount fails with `EROFS`. The committed
+  file stays the source of truth; the in-container rewrite is throwaway since Dokploy
+  re-clones from git per deploy. Kept outside the `/data` volume so it is not
+  shadowed by `openclaw-data`.
   Currently disables semantic memory search (no embedding provider is configured;
   OpenRouter cannot supply embeddings; keyword/FTS recall still works) and
   allowlists the public Control-UI origin via `gateway.controlUi.allowedOrigins`
