@@ -5,5 +5,10 @@
         "enabled": false
       }
     }
+  },
+  "gateway": {
+    "controlUi": {
+      "allowedOrigins": ["https://openclawsimo.zebra.town"]
+    }
   }
 }

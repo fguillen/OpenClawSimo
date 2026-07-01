@@ -50,7 +50,11 @@ docker compose exec openclaw openclaw doctor
   `/config/openclaw.json` and selected via `OPENCLAW_CONFIG_PATH` (default points
   there). Kept outside the `/data` volume so it is not shadowed by `openclaw-data`.
   Currently disables semantic memory search (no embedding provider is configured;
-  OpenRouter cannot supply embeddings). Keyword/FTS recall still works.
+  OpenRouter cannot supply embeddings; keyword/FTS recall still works) and
+  allowlists the public Control-UI origin via `gateway.controlUi.allowedOrigins`
+  (the Gateway Dashboard is served remotely at `https://openclawsimo.zebra.town`,
+  so its origin must be added or the WebSocket handshake is rejected with "origin
+  not allowed").
 - **`.env`** (from `.env.example`) — all runtime config. Provider keys, web-UI
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.
