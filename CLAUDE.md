@@ -34,8 +34,11 @@ docker compose exec openclaw openclaw doctor
   contains a placeholder hostname `claw.example.es` that must be replaced per
   deployment) plus a `browser` service: a `kasmweb/chrome` sidecar exposing a CDP
   endpoint at `http://browser:9222` (in-network only), wired into openclaw via
-  `BROWSER_CDP_URL`. The sidecar is a large image with meaningful RAM/CPU cost but
-  ships enabled by default.
+  `BROWSER_CDP_URL`. Pin a Kasm version tag — there is no `latest` tag — and pass
+  `CHROME_ARGS=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0
+  --remote-allow-origins=*`, without which Kasm's Chrome binds CDP to localhost and
+  the openclaw container cannot reach it. The sidecar is a large image with
+  meaningful RAM/CPU cost but ships enabled by default.
 - **`.env`** (from `.env.example`) — all runtime config. Provider keys, web-UI
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.

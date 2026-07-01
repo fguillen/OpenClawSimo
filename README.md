@@ -20,9 +20,9 @@ Set the real hostname in the Traefik router label in
 ## Compose file
 
 Everything runs from a single [docker-compose.yaml](docker-compose.yaml): the
-`openclaw` service plus a `browser` sidecar (headless Chrome exposing a CDP
-endpoint) for browser automation. The sidecar is heavy — a large image with
-meaningful RAM and CPU cost — but is now included by default.
+`openclaw` service plus a `browser` sidecar (full Chrome via Kasm/noVNC, exposing
+a CDP endpoint on `:9222`) for browser automation. The sidecar is heavy — a large
+image with meaningful RAM and CPU cost — but is now included by default.
 
 ## Hardening checklist
 

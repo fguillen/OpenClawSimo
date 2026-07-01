@@ -29,9 +29,11 @@ FSN1 host. Full product docs live at https://docs.openclaw.ai.
 
 ## Browser sidecar
 
-The headless Chrome sidecar ships in the base `docker-compose.yaml` and starts
-with the stack — no extra file or Dokploy config needed. It is heavy (large image,
-meaningful RAM and CPU cost), so factor that into host sizing.
+The full Chrome (Kasm/noVNC) sidecar ships in the base `docker-compose.yaml` and
+starts with the stack — no extra file or Dokploy config needed. It exposes a CDP
+endpoint on `:9222` (in-network) that OpenClaw drives, and a web desktop on `:6901`
+for manual login to auth-gated sites. It is heavy (large image, meaningful RAM and
+CPU cost), so factor that into host sizing.
 
 ## Updating
 
