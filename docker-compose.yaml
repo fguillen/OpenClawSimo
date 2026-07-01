@@ -66,6 +66,37 @@ services:
     expose:
       - "8080"
 
+  # Tailscale sidecar exposing the loopback-bound gateway (127.0.0.1:18789) to the
+  # tailnet over HTTPS via `tailscale serve`. It shares the openclaw container's
+  # network namespace (network_mode: service:openclaw) so tailscaled sees the
+  # gateway on localhost and the tailnet interface lives in the same netns — the
+  # openclaw service itself is untouched (still loopback bind, 8080 for Traefik).
+  # We run Serve from this sidecar rather than OpenClaw's built-in
+  # gateway.tailscale.mode so we don't depend on the openclaw image shipping the
+  # tailscale CLI. Tailnet-only (serve, not funnel): the gateway is never public.
+  # Requires (Tailscale admin console): MagicDNS + HTTPS certs enabled, and a
+  # reusable non-ephemeral TS_AUTHKEY set in Dokploy. The named tailscale-state
+  # volume persists the node identity across redeploys. TS_USERSPACE avoids
+  # needing /dev/net/tun or NET_ADMIN. Reach the dashboard at
+  # wss://openclawsimo.<tailnet>.ts.net. Serve config is the committed
+  # ts-serve.example.json, live copy in Dokploy's files/config (mounted at /config).
+  tailscale:
+    image: tailscale/tailscale:v1.80.0
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      - openclaw
+    network_mode: "service:openclaw"
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY:?set TS_AUTHKEY in Dokploy Environment Settings}
+      - TS_HOSTNAME=openclawsimo
+      - TS_USERSPACE=true
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_SERVE_CONFIG=/config/ts-serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ../files/config:/config
+
   # Full Chrome (Kasm/noVNC) sidecar exposing a CDP endpoint so OpenClaw can drive
   # a real browser, reachable in-network as http://browser:9222. The web desktop
   # (:6901) allows manual login for auth-gated sites. Heavy: large image with
@@ -88,6 +119,7 @@ services:
 volumes:
   openclaw-data:
   browser-profile:
+  tailscale-state:
 
 networks:
   dokploy-network:

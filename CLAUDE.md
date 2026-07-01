@@ -48,6 +48,21 @@ docker compose exec openclaw openclaw doctor
   --remote-allow-origins=*`, without which Kasm's Chrome binds CDP to localhost and
   the openclaw container cannot reach it. The sidecar is a large image with
   meaningful RAM/CPU cost but ships enabled by default.
+  Plus a `tailscale` service: a `tailscale/tailscale` sidecar that exposes the
+  loopback-bound gateway (`127.0.0.1:18789`) to the tailnet over HTTPS via
+  `tailscale serve`, so the remote **Gateway Dashboard** (Control UI) can reach it
+  **without** any public route. It uses `network_mode: "service:openclaw"` to share
+  openclaw's network namespace — so tailscaled sees the gateway on localhost and the
+  tailnet interface lives in the same netns — which leaves the openclaw service
+  itself untouched (still `loopback` bind, `8080` for Traefik). Serve (not funnel)
+  keeps it tailnet-only. We run Serve from this sidecar rather than OpenClaw's
+  built-in `gateway.tailscale.mode` so we don't depend on the `coollabsio/openclaw`
+  image shipping the tailscale CLI. Requires (Tailscale admin console) MagicDNS +
+  HTTPS certs enabled and a reusable non-ephemeral `TS_AUTHKEY` set in Dokploy; the
+  `tailscale-state` volume persists node identity across redeploys, and
+  `TS_USERSPACE=true` avoids needing `/dev/net/tun`/`NET_ADMIN`. The Serve config is
+  the committed `ts-serve.example.json` (live copy in Dokploy's `files/config`,
+  mounted at `/config`). Reach the dashboard at `wss://openclawsimo.<tailnet>.ts.net`.
 - **`openclaw.json`** — declarative config for settings that have **no env-var
   equivalent** (env vars only cover keys, auth, paths, channels; things like
   `agents.defaults.memorySearch.enabled` are config-file only). Selected via
@@ -63,10 +78,12 @@ docker compose exec openclaw openclaw doctor
   the boot rewrite persists in Dokploy's `files/` dir across redeploys.
   Currently disables semantic memory search (no embedding provider is configured;
   OpenRouter cannot supply embeddings; keyword/FTS recall still works) and
-  allowlists the public Control-UI origin via `gateway.controlUi.allowedOrigins`
-  (the Gateway Dashboard is served remotely at `https://openclawsimo.zebra.town`,
-  so its origin must be added or the WebSocket handshake is rejected with "origin
-  not allowed").
+  allowlists the tailnet Control-UI origin via `gateway.controlUi.allowedOrigins`
+  (the Gateway Dashboard is served over the tailnet at
+  `https://openclawsimo.<tailnet>.ts.net` — see the `tailscale` sidecar above — so
+  that origin must be added or the WebSocket handshake is rejected with "origin not
+  allowed"). Also sets `gateway.auth.allowTailscale: true` so tailnet identity
+  satisfies Control-UI auth (the Gateway Token still works if omitted).
 - **`.env`** (from `.env.example`) — all runtime config. Provider keys, web-UI
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.
@@ -80,6 +97,9 @@ OpenClaw is an agent with **shell and workspace access**; assume any instance ca
 run arbitrary commands on its host. Config changes here have real blast radius:
 
 - Keep `OPENCLAW_GATEWAY_BIND=loopback` — never expose the gateway publicly.
+  Remote Control-UI access goes over the **tailnet only** (the `tailscale` sidecar
+  running `tailscale serve`); never add a public Traefik route to port 18789 or
+  switch the sidecar to `funnel`.
 - `AUTH_PASSWORD` is required; never run without one.
 - Restrict every channel with an allowlist: set `*_DM_POLICY=allowlist` **and** a
   populated `*_ALLOW_FROM` (e.g. `TELEGRAM_DM_POLICY` / `TELEGRAM_ALLOW_FROM`).
