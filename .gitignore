@@ -1,0 +1,16 @@
+# Secrets
+.env
+!.env.example
+
+# Runtime data
+/data
+
+# Editor cruft
+.vscode/
+.idea/
+*.swp
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db

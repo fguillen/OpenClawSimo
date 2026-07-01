@@ -1,0 +1,32 @@
+# Browser sidecar overlay (opt-in, heavy)
+# Adds a headless Chrome exposing CDP so OpenClaw can drive a real browser.
+# This pulls a large image and adds meaningful RAM and CPU load. Enable only
+# when you need browser automation. Run alongside the base file:
+#   docker compose -f docker-compose.yaml -f docker-compose.browser.yaml up -d
+# Docs: https://docs.openclaw.ai
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  openclaw:
+    environment:
+      - BROWSER_CDP_URL=http://browser:9222
+
+  browser:
+    image: kasmweb/chrome
+    restart: unless-stopped
+    logging: *default-logging
+    volumes:
+      - browser-profile:/home/kasm-user
+    networks:
+      - dokploy-network
+    # CDP endpoint, reachable in-network as http://browser:9222
+    expose:
+      - "9222"
+
+volumes:
+  browser-profile:

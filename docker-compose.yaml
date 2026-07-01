@@ -1,0 +1,33 @@
+# OpenClaw self-hosted deployment
+# Docs: https://docs.openclaw.ai
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  openclaw:
+    image: coollabsio/openclaw:latest
+    restart: unless-stopped
+    env_file: .env
+    logging: *default-logging
+    stop_grace_period: 30s
+    volumes:
+      - openclaw-data:/data
+    networks:
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.openclaw.rule=Host(`claw.example.es`)
+      - traefik.http.routers.openclaw.entrypoints=websecure
+      - traefik.http.routers.openclaw.tls.certresolver=letsencrypt
+      - traefik.http.services.openclaw.loadbalancer.server.port=8080
+
+volumes:
+  openclaw-data:
+
+networks:
+  dokploy-network:
+    external: true
