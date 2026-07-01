@@ -27,8 +27,16 @@ FSN1 host. Full product docs live at https://docs.openclaw.ai.
    [.env.example](../.env.example). `AUTH_PASSWORD` and `OPENCLAW_GATEWAY_TOKEN`
    are required — the compose file fails the deploy if either is unset — plus at
    least one provider key. Generate secrets with `openssl rand`.
-5. Deploy. Traefik issues the TLS cert on first request to the hostname.
-6. After boot, exec into the container and run `openclaw doctor` to validate.
+5. Create the declarative config file. In the app's **Advanced → Volumes / Mounts**,
+   add a **File Mount** at mount path `config/openclaw.json` (Dokploy writes it to
+   `../files/config/openclaw.json`, which the compose file bind-mounts as the directory
+   `/config`). Paste the contents of [openclaw.example.json](../openclaw.example.json).
+   A **directory** is mounted (not the single file) because OpenClaw rewrites this file
+   in place at boot via an atomic `rename()`, which fails with `EBUSY` on a single-file
+   bind mount. Do this **before deploying** — if `/config` is empty the config path won't
+   exist. Unlike the old repo-clone approach, this file persists across redeploys.
+6. Deploy. Traefik issues the TLS cert on first request to the hostname.
+7. After boot, exec into the container and run `openclaw doctor` to validate.
 
 ## Browser sidecar
 

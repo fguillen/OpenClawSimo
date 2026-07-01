@@ -48,15 +48,19 @@ docker compose exec openclaw openclaw doctor
   --remote-allow-origins=*`, without which Kasm's Chrome binds CDP to localhost and
   the openclaw container cannot reach it. The sidecar is a large image with
   meaningful RAM/CPU cost but ships enabled by default.
-- **`openclaw.json`** — committed declarative config for settings that have **no
-  env-var equivalent** (env vars only cover keys, auth, paths, channels; things like
-  `agents.defaults.memorySearch.enabled` are config-file only). Mounted **writable**
-  at `/config/openclaw.json` and selected via `OPENCLAW_CONFIG_PATH` (default points
-  there) — openclaw's `configure.js` reads this path and rewrites the normalized
-  config back in-place at boot, so a `:ro` mount fails with `EROFS`. The committed
-  file stays the source of truth; the in-container rewrite is throwaway since Dokploy
-  re-clones from git per deploy. Kept outside the `/data` volume so it is not
-  shadowed by `openclaw-data`.
+- **`openclaw.json`** — declarative config for settings that have **no env-var
+  equivalent** (env vars only cover keys, auth, paths, channels; things like
+  `agents.defaults.memorySearch.enabled` are config-file only). Selected via
+  `OPENCLAW_CONFIG_PATH` (default `/config/openclaw.json`). The live file is **not**
+  committed — it lives in Dokploy's persistent `files/` dir (created via the Dokploy UI
+  as a File Mount at `config/openclaw.json`); the committed **`openclaw.example.json`**
+  is the reference for its contents. The compose file bind-mounts the **directory**
+  `../files/config` at `/config` — not the single file — because `configure.js` reads
+  the config and rewrites the normalized version back in-place at boot via an atomic
+  `rename()`, which fails with `EBUSY` on a single-file bind mount (`:ro` fails earlier
+  with `EROFS`). Mounting the parent directory lets the temp-file rename stay within one
+  filesystem. Kept outside the `/data` volume so it is not shadowed by `openclaw-data`;
+  the boot rewrite persists in Dokploy's `files/` dir across redeploys.
   Currently disables semantic memory search (no embedding provider is configured;
   OpenRouter cannot supply embeddings; keyword/FTS recall still works) and
   allowlists the public Control-UI origin via `gateway.controlUi.allowedOrigins`

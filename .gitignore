@@ -5,6 +5,8 @@
 
 # Runtime data
 /data
+# Live config lives in Dokploy's files dir; only openclaw.example.json is tracked
+openclaw.json
 
 # Editor cruft
 .vscode/

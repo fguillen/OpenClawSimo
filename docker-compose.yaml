@@ -49,12 +49,14 @@ services:
       - WHATSAPP_ALLOW_FROM=${WHATSAPP_ALLOW_FROM:-}
     volumes:
       - openclaw-data:/data
-      # Declarative config seed, committed to the repo (see OPENCLAW_CONFIG_PATH
-      # above). Must be writable: openclaw's configure.js reads this path, then
-      # writes the normalized config back in-place at boot, so a :ro mount fails
-      # with EROFS. Kept outside /data so it is not shadowed by openclaw-data; the
-      # in-container rewrite is throwaway (Dokploy re-clones from git each deploy).
-      - ./openclaw.json:/config/openclaw.json
+      # Declarative config (see OPENCLAW_CONFIG_PATH above), holding openclaw.json.
+      # A DIRECTORY is mounted at /config — not the single file — because openclaw's
+      # configure.js saves via atomic rename() (write tmp, rename over target), which
+      # fails with EBUSY on a single-file bind mount (can't rename over a mountpoint).
+      # The file lives in Dokploy's persistent files/ dir (created via the Dokploy UI,
+      # out of git) so openclaw's boot rewrite is writable and survives redeploys. The
+      # tracked openclaw.example.json is the reference for its contents.
+      - ../files/config:/config
     networks:
       - dokploy-network
     # No Traefik labels here: routing and TLS are configured in Dokploy's Domains
