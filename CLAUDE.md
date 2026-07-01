@@ -29,10 +29,15 @@ docker compose exec openclaw openclaw doctor
 
 - **`docker-compose.yaml`** — the whole stack. The `openclaw` service (persistent
   `openclaw-data` volume mounted at `/data`, joined to the external
-  `dokploy-network`, public exposure entirely via Traefik labels — TLS via the
-  `letsencrypt` certresolver, container port 8080; the router `Host()` rule
-  contains a placeholder hostname `claw.example.es` that must be replaced per
-  deployment) plus a `browser` service: a `kasmweb/chrome` sidecar exposing a CDP
+  `dokploy-network`, container port 8080). Routing and TLS are **not** in the
+  compose file — the service carries no Traefik labels; configure the domain in
+  Dokploy's **Domains** UI (service `openclaw`, port 8080, `letsencrypt`
+  certresolver) and Dokploy generates the Traefik config. Env vars are injected via
+  explicit `${VAR}` interpolation in the `environment:` block (no `env_file`); set
+  them in Dokploy's **Environment Settings**, which Dokploy writes to a `.env`
+  beside the compose file for Compose to interpolate. Required secrets
+  (`AUTH_PASSWORD`, `OPENCLAW_GATEWAY_TOKEN`) use `${VAR:?}` and fail the deploy if
+  unset. Plus a `browser` service: a `kasmweb/chrome` sidecar exposing a CDP
   endpoint at `http://browser:9222` (in-network only), wired into openclaw via
   `BROWSER_CDP_URL`. Pin a Kasm version tag — there is no `latest` tag — and pass
   `CHROME_ARGS=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0

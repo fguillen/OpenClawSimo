@@ -19,11 +19,14 @@ FSN1 host. Full product docs live at https://docs.openclaw.ai.
 
 1. In Dokploy, create a new Compose application and point it at this repo.
 2. Set the compose path to `docker-compose.yaml`.
-3. Open [docker-compose.yaml](../docker-compose.yaml) and replace the placeholder
-   host `claw.example.es` in the Traefik router label with your real hostname.
-4. Add the environment variables from [.env.example](../.env.example) in the
-   Dokploy UI. At minimum: one provider key, `AUTH_PASSWORD`, and
-   `OPENCLAW_GATEWAY_TOKEN`. Generate secrets with `openssl rand`.
+3. Open the app's **Domains** tab and add a domain: service `openclaw`, container
+   port `8080`, HTTPS enabled with the `letsencrypt` certresolver. Dokploy
+   generates the Traefik routing config — the compose file carries no Traefik
+   labels.
+4. In the app's **Environment Settings**, add the variables from
+   [.env.example](../.env.example). `AUTH_PASSWORD` and `OPENCLAW_GATEWAY_TOKEN`
+   are required — the compose file fails the deploy if either is unset — plus at
+   least one provider key. Generate secrets with `openssl rand`.
 5. Deploy. Traefik issues the TLS cert on first request to the hostname.
 6. After boot, exec into the container and run `openclaw doctor` to validate.
 
