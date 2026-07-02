@@ -21,22 +21,23 @@ Always create a git commit after completing a task.
 
 ```
 cp .env.example .env          # then fill in secrets (see below)
-docker compose up -d          # full stack (openclaw + browser sidecar)
-docker compose logs -f openclaw
+docker compose up -d          # full stack (openclawsimo + browser sidecar)
+docker compose logs -f openclawsimo
 docker compose pull && docker compose up -d   # update to a new image
 
 # Validate a running instance:
-docker compose exec openclaw openclaw doctor
+docker compose exec openclawsimo openclaw doctor
 ```
 
 ## Architecture
 
-- **`docker-compose.yaml`** — the whole stack. The `openclaw` service (persistent
+- **`docker-compose.yaml`** — the whole stack. The `openclawsimo` service (persistent
   `openclaw-data` volume mounted at `/data`, joined to the external
-  `dokploy-network`, container port 8080). Routing and TLS are **not** in the
-  compose file — the service carries no Traefik labels; configure the domain in
-  Dokploy's **Domains** UI (service `openclaw`, port 8080, `letsencrypt`
-  certresolver) and Dokploy generates the Traefik config. Env vars are injected via
+  `dokploy-network`, container port 8080). The Control UI is private. There is no
+  public route and no Traefik Domain. nginx (port 8080, basic auth) is published to
+  the host loopback only via `ports: 127.0.0.1:8080:8080`, reached over an SSH tunnel
+  (see docs/deploy.md), and the gateway stays on loopback 18789 behind nginx. The
+  service stays on `dokploy-network` only to reach the browser sidecar. Env vars are injected via
   explicit `${VAR}` interpolation in the `environment:` block (no `env_file`); set
   them in Dokploy's **Environment Settings**, which Dokploy writes to a `.env`
   beside the compose file for Compose to interpolate. Required secrets
@@ -63,11 +64,11 @@ docker compose exec openclaw openclaw doctor
   the boot rewrite persists in Dokploy's `files/` dir across redeploys.
   Currently disables semantic memory search (no embedding provider is configured;
   OpenRouter cannot supply embeddings; keyword/FTS recall still works) and
-  allowlists the public Control-UI origin via `gateway.controlUi.allowedOrigins`
-  (the Gateway Dashboard is served remotely at `https://openclawsimo.zebra.town`,
-  so its origin must be added or the WebSocket handshake is rejected with "origin
-  not allowed").
-- **`.env`** (from `.env.example`) — all runtime config. Provider keys, web-UI
+  allowlists the Control-UI origin via `gateway.controlUi.allowedOrigins`
+  (the Control UI is loaded over the SSH tunnel at `http://localhost:8080`, so that
+  origin must be added or the WebSocket handshake is rejected with "origin not
+  allowed").
+- **`.env`** (from `.env.example`) — all runtime config. Provider keys, nginx basic
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.
 - **`docs/deploy.md`** — step-by-step Dokploy deploy runbook and host
@@ -80,6 +81,8 @@ OpenClaw is an agent with **shell and workspace access**; assume any instance ca
 run arbitrary commands on its host. Config changes here have real blast radius:
 
 - Keep `OPENCLAW_GATEWAY_BIND=loopback` — never expose the gateway publicly.
+- The Control UI is an admin surface (chat, config, exec approvals). Never expose it
+  publicly. Publish nginx to the host loopback only and reach it over an SSH tunnel.
 - `AUTH_PASSWORD` is required; never run without one.
 - Restrict every channel with an allowlist: set `*_DM_POLICY=allowlist` **and** a
   populated `*_ALLOW_FROM` (e.g. `TELEGRAM_DM_POLICY` / `TELEGRAM_ALLOW_FROM`).
