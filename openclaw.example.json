@@ -8,10 +8,7 @@
   },
   "gateway": {
     "controlUi": {
-      "allowedOrigins": ["https://openclawsimo.<tailnet>.ts.net"]
-    },
-    "auth": {
-      "allowTailscale": true
+      "allowedOrigins": ["https://openclawsimo.zebra.town"]
     }
   }
 }
