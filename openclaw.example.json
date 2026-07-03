@@ -3,6 +3,13 @@
     "defaults": {
       "memorySearch": {
         "enabled": false
+      },
+      "models": {
+        "anthropic/claude-sonnet-5": {
+          "params": {
+            "cacheRetention": "long"
+          }
+        }
       }
     }
   },

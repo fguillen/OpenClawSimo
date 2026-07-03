@@ -67,7 +67,18 @@ docker compose exec openclawsimo openclaw doctor
   allowlists the Control-UI origin via `gateway.controlUi.allowedOrigins`
   (the Control UI is loaded over the SSH tunnel at `http://localhost:8080`, so that
   origin must be added or the WebSocket handshake is rejected with "origin not
-  allowed").
+  allowed"). Also enables **Anthropic prompt caching** via
+  `agents.defaults.models["anthropic/claude-sonnet-5"].params.cacheRetention: "long"`.
+  Every request carries a large fixed prefix (system prompt + all tool schemas — the
+  browser/CDP tools are big — + skills + bootstrapped workspace files), so a trivial
+  "hi" still costs ~40k input tokens; caching bills that stable prefix as cache reads
+  (~10% of input price) instead of full input on repeat messages. Caching is
+  **Anthropic-API-only**, which is why `OPENCLAW_PRIMARY_MODEL` uses the native
+  `anthropic/claude-sonnet-5` form (not `openrouter/…`); routed via OpenRouter the
+  prefix gets no cache discount. Caching cuts cost, not the reported token *count* — to
+  shrink the count itself, cap bootstrap file injection (`agents.defaults.bootstrapMaxChars`
+  / `bootstrapTotalMaxChars`) and trim the injected skills list (`agents.defaults.skills`);
+  use `/context detail` to see the exact per-section breakdown first.
 - **`.env`** (from `.env.example`) — all runtime config. Provider keys, nginx basic
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.
