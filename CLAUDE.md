@@ -75,10 +75,19 @@ docker compose exec openclawsimo openclaw doctor
   (~10% of input price) instead of full input on repeat messages. Caching is
   **Anthropic-API-only**, which is why `OPENCLAW_PRIMARY_MODEL` uses the native
   `anthropic/claude-sonnet-5` form (not `openrouter/…`); routed via OpenRouter the
-  prefix gets no cache discount. Caching cuts cost, not the reported token *count* — to
-  shrink the count itself, cap bootstrap file injection (`agents.defaults.bootstrapMaxChars`
-  / `bootstrapTotalMaxChars`) and trim the injected skills list (`agents.defaults.skills`);
-  use `/context detail` to see the exact per-section breakdown first.
+  prefix gets no cache discount. Caching cuts cost, not the reported token *count*.
+  To shrink the count itself, the config also prunes the tool surface via a top-level
+  `tools.deny` list (deny wins; a denied tool's JSON schema is not sent to the model
+  that turn) — dropping tools this deployment does not use (`qqbot_remind` is QQ-only,
+  plus `video_generate`/`music_generate`, the multi-agent `subagents`/`sessions_spawn`/
+  `sessions_yield`/`sessions_send`, and the `*_goal` tools). Kept: cron, tts,
+  image_generate, skill_workshop, nodes, canvas, browser, and the file/exec/message/web
+  core. Further count levers, driven by `/context detail`: trim the injected skills list
+  via `agents.defaults.skills` (an allowlist — 17 skills ≈ 1.5k tok by default), cap
+  bootstrap file injection (`agents.defaults.bootstrapMaxChars` /
+  `bootstrapTotalMaxChars`), and slim the largest bootstrapped workspace file
+  (`AGENTS.md` ≈ 2.1k tok, injected on every message). Run `/context detail` for the
+  exact per-section breakdown before cutting.
 - **`.env`** (from `.env.example`) — all runtime config. Provider keys, nginx basic
   auth, gateway token/bind, state and workspace dirs under `/data`, CORS origins,
   and per-channel settings. Git-ignored; only `.env.example` is committed.

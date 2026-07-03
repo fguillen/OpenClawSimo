@@ -13,6 +13,20 @@
       }
     }
   },
+  "tools": {
+    "deny": [
+      "qqbot_remind",
+      "video_generate",
+      "music_generate",
+      "subagents",
+      "sessions_spawn",
+      "sessions_yield",
+      "sessions_send",
+      "create_goal",
+      "update_goal",
+      "get_goal"
+    ]
+  },
   "gateway": {
     "controlUi": {
       "allowedOrigins": ["http://localhost:8080"]
