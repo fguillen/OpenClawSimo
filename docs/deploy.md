@@ -40,13 +40,18 @@ live at https://docs.openclaw.ai.
    (not the single file) because OpenClaw rewrites this file in place at boot via an
    atomic `rename()`, which fails with `EBUSY` on a single-file bind mount. Do this
    **before deploying** — if `/config` is empty the config path won't exist. This file
-   persists across redeploys.
+   persists across redeploys. Set `gateway.bind: "lan"` in it (see Access) so the
+   gateway is reachable through the published port.
    > Confirm the exact `openclaw.json` schema keys for the default model and the
    > Telegram channel against the official config reference; the example uses a
    > best-effort structure.
-6. Permissions: the official image runs as non-root `node` (UID 1000). Ensure the
-   Dokploy `files/config` directory and the `openclaw-data` volume are writable by
-   UID 1000, or the boot config-rewrite fails.
+6. Permissions: the official image runs as non-root `node` (UID 1000), but a fresh
+   named volume and the Dokploy `files/config` bind mount are created root-owned, so
+   `node` gets `EACCES` and the config never loads. The `init-perms` service in the
+   compose file chowns both mounts to UID 1000 on every deploy before openclawsimo
+   starts — no manual step needed. If the `openclaw-data` volume already exists with
+   unrelated root-owned content from an earlier attempt, delete it (Dokploy → the app's
+   **Volumes**, or `docker volume rm <project>_openclaw-data`) so it starts clean.
 7. Deploy. The stack starts with no public route.
 8. After boot, validate with `docker compose exec openclawsimo openclaw doctor`.
 
@@ -60,9 +65,14 @@ front door.
 |-------|-----------------------------------------------|----------------------------------------------------------|
 | 18789 | gateway, serves the Control UI over WebSocket | published to host `127.0.0.1` only, reach via SSH tunnel |
 
-The gateway binds to the container's external interface (so Docker can forward the
-published port) but is published only to the host loopback, so it is reachable
-solely over an SSH tunnel. The gateway token authenticates the session.
+Set `gateway.bind: "lan"` in `openclaw.json` so the gateway listens on the
+container's network interface (not just in-container loopback); Docker then forwards
+the host-loopback-published port to it. Do **not** use `0.0.0.0` — the gateway
+rejects raw addresses; the accepted modes are `loopback` / `lan` / `tailnet` / `auto`
+/ `custom`. Because the publish is host-loopback only (`127.0.0.1:18789`), it stays
+reachable solely over an SSH tunnel, and the gateway token authenticates the session.
+A non-loopback bind also makes the gateway enforce the Control-UI origin check, which
+is why `gateway.controlUi.allowedOrigins` must list `http://localhost:18789`.
 
 Runbook:
 

@@ -1,8 +1,8 @@
-# Secrets
+# Secrets — ignore every .env* variant (.env, .env.production, .env.*.back, …)
+# except the committed template.
 .env
+.env.*
 !.env.example
-.env.production
-.env.production.back
 
 # Runtime data
 /data

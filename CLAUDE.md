@@ -43,21 +43,26 @@ docker compose exec openclawsimo openclaw doctor
   route, and no Domain. The **gateway serves the Control UI directly on port 18789**,
   published to the host loopback only via `ports: 127.0.0.1:18789:18789` and reached
   over an SSH tunnel (see docs/deploy.md). Because there is no nginx in front, the
-  gateway itself must listen on the container's external interface for Docker to forward
-  the published port — so `OPENCLAW_GATEWAY_BIND` is **not** `loopback` (it is set to a
-  publishable value such as `all`; confirm the exact value against the image). Effective
-  exposure still stays loopback-on-host; the **gateway token is the auth boundary**. The
-  service stays on `dokploy-network` for Dokploy compatibility (the token, not the
-  network, is what protects it; it may be moved to a private network now that the sidecar
-  is gone). Env vars are injected via explicit `${VAR}` interpolation in the
-  `environment:` block (no `env_file`); set them in Dokploy's **Environment Settings**,
-  which Dokploy writes to a `.env` beside the compose file. The official image is
-  config-file-driven, so the env block is slim — provider keys, the required
-  `OPENCLAW_GATEWAY_TOKEN` (`${VAR:?}`, fails the deploy if unset), the gateway bind, and
-  the config path; model/channels/tools live in `openclaw.json`. **Verify against the
-  actual image:** the exact `OPENCLAW_GATEWAY_BIND` value, the config path var name
-  (`OPENCLAW_CONFIG_PATH` vs `OPENCLAW_CONFIG_DIR`), and whether provider keys are read
-  from env at all (they may need to live in `openclaw.json` / an auth profile).
+  gateway must listen beyond the in-container loopback for Docker to forward the
+  published port — this is **not** an env var: it is set in `openclaw.json` as
+  `gateway.bind: "lan"` (accepted modes are `loopback`/`lan`/`tailnet`/`auto`/`custom`;
+  a raw `0.0.0.0` is rejected). Effective exposure still stays loopback-on-host; the
+  **gateway token is the auth boundary**. A one-shot **`init-perms`** service (busybox,
+  runs as root, `depends_on … service_completed_successfully`) chowns the data volume
+  and the `/config` bind mount to UID 1000 before openclawsimo starts, because the image
+  runs as non-root `node` (1000) and fresh mounts are created root-owned (otherwise:
+  `EACCES` on `/home/node/.openclaw` and the config never loads). The service stays on
+  `dokploy-network` for Dokploy compatibility (the token, not the network, is what
+  protects it; it may be moved to a private network now that the sidecar is gone). Env
+  vars are injected via explicit `${VAR}` interpolation in the `environment:` block (no
+  `env_file`); set them in Dokploy's **Environment Settings**, which Dokploy writes to a
+  `.env` beside the compose file. The official image is config-file-driven, so the env
+  block is slim — provider keys (read from env; confirmed), the required
+  `OPENCLAW_GATEWAY_TOKEN` (`${VAR:?}`, fails the deploy if unset), and the config path
+  `OPENCLAW_CONFIG_PATH` (honored — the gateway watches that exact path); model,
+  channels, tools and `gateway.bind` live in `openclaw.json`. **Still verify against the
+  actual image:** the exact `openclaw.json` schema keys for the default model and the
+  Telegram channel.
 - **`openclaw.json`** — declarative config. Under the official image this holds the bulk
   of configuration (the community image's env-var → config conversion is gone): the
   default model, channels (Telegram), `tools.deny`, and agent defaults, plus settings

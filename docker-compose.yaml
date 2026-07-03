@@ -8,6 +8,20 @@ x-logging: &default-logging
     max-file: "3"
 
 services:
+  # One-shot permissions fix. The image runs as non-root `node` (UID 1000), but a
+  # fresh named volume and Dokploy's files/ bind mount are created root-owned, so
+  # node cannot read/write them (EACCES on /home/node/.openclaw and /config). This
+  # chowns both to 1000 and exits; openclawsimo waits for it via depends_on. Runs on
+  # every deploy — idempotent and cheap.
+  init-perms:
+    image: busybox:1.36.1
+    user: "0:0"
+    command: ["sh", "-c", "chown -R 1000:1000 /home/node/.openclaw /config"]
+    restart: "no"
+    volumes:
+      - openclaw-data:/home/node/.openclaw
+      - ../files/config:/config
+
   openclawsimo:
     # Official image. GHCR is the primary registry; `openclaw/openclaw` on Docker
     # Hub is the official mirror. Pin a dated tag — do NOT track `latest`. Pick the
@@ -16,6 +30,9 @@ services:
     restart: unless-stopped
     logging: *default-logging
     stop_grace_period: 30s
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
     # Env vars are injected via explicit ${VAR} interpolation, set in Dokploy's
     # Environment Settings (Dokploy writes them to a .env next to this file, which
     # Compose auto-loads). The official image is config-file-driven, so only secrets
@@ -23,22 +40,19 @@ services:
     # live in openclaw.json. Required secrets use :? and fail the deploy loudly if
     # unset. See .env.example.
     environment:
-      # Provider keys (set the one(s) you use in Dokploy).
-      # NOTE: confirm the official image reads provider keys from env; if it expects
-      # them in openclaw.json / an auth profile instead, move them there.
+      # Provider keys — the official image reads these from env (an anthropic model
+      # boots fine with ANTHROPIC_API_KEY set). Set the one(s) you use in Dokploy.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      # Gateway. The token is the auth boundary — there is no nginx / basic auth.
+      # Gateway token — the only auth boundary (there is no nginx / basic auth). Required.
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:?set OPENCLAW_GATEWAY_TOKEN in Dokploy Environment Settings}
-      # The gateway must listen on the container's external interface so Docker can
-      # forward the published port below — a pure in-container loopback bind is NOT
-      # reachable through `ports:`. Exposure still stays loopback-on-HOST (see ports).
-      # NOTE: confirm the exact value the official image expects (e.g. all / lan / 0.0.0.0).
-      - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-all}
-      # Declarative config file (mounted writable below). Holds model, channels,
-      # tools.deny and agent defaults — everything with an openclaw.json home.
-      # NOTE: confirm the official var name (OPENCLAW_CONFIG_PATH vs OPENCLAW_CONFIG_DIR).
+      # Declarative config file path — honored by the official image (it watches this
+      # exact path). Holds model, channels, tools.deny, agent defaults AND gateway.bind.
       - OPENCLAW_CONFIG_PATH=${OPENCLAW_CONFIG_PATH:-/config/openclaw.json}
+      # NOTE: the gateway BIND is NOT an env var on the official image. It is set in
+      # openclaw.json as `gateway.bind: "lan"`, so the gateway listens beyond the
+      # in-container loopback and Docker can forward the host-loopback-published port
+      # (127.0.0.1:18789 below). `0.0.0.0` is rejected — use the named mode `lan`.
     volumes:
       # State, workspace and auth secrets persist here (official layout under
       # /home/node/.openclaw). The image runs as non-root `node` (UID 1000), so this

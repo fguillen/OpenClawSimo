@@ -23,6 +23,7 @@
     }
   },
   "gateway": {
+    "bind": "lan",
     "controlUi": {
       "allowedOrigins": ["http://localhost:18789"]
     }
