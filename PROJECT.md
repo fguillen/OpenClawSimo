@@ -42,6 +42,7 @@ with everyday life.
 ## Guardrails (see CLAUDE.md security model)
 
 Simo runs on an agent with shell/workspace access — real blast radius. Access is
-locked down per channel with `*_DM_POLICY=allowlist` + populated `*_ALLOW_FROM`
-so only family members can talk to Simo. This document defines *who Simo is*;
-`CLAUDE.md` defines *how it's deployed and secured*.
+locked down per channel with an allowlist policy (`dmPolicy: allowlist` + a
+populated `allowFrom` in `openclaw.json`) so only family members can talk to Simo.
+This document defines *who Simo is*; `CLAUDE.md` defines *how it's deployed and
+secured*.

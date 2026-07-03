@@ -9,87 +9,64 @@ x-logging: &default-logging
 
 services:
   openclawsimo:
-    image: coollabsio/openclaw:latest
+    # Official image. GHCR is the primary registry; `openclaw/openclaw` on Docker
+    # Hub is the official mirror. Pin a dated tag — do NOT track `latest`. Pick the
+    # current stable tag at deploy time (see https://docs.openclaw.ai/install/docker).
+    image: ghcr.io/openclaw/openclaw:2026.2.26
     restart: unless-stopped
     logging: *default-logging
     stop_grace_period: 30s
     # Env vars are injected via explicit ${VAR} interpolation, set in Dokploy's
     # Environment Settings (Dokploy writes them to a .env next to this file, which
-    # Compose auto-loads). Required secrets use :? and fail the deploy loudly if
-    # unset; everything else falls back to a safe default. See .env.example.
+    # Compose auto-loads). The official image is config-file-driven, so only secrets
+    # and a few infra vars live here; model, channels, tools.deny and agent defaults
+    # live in openclaw.json. Required secrets use :? and fail the deploy loudly if
+    # unset. See .env.example.
     environment:
-      # Provider keys (set the one(s) you use in Dokploy)
+      # Provider keys (set the one(s) you use in Dokploy).
+      # NOTE: confirm the official image reads provider keys from env; if it expects
+      # them in openclaw.json / an auth profile instead, move them there.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
-      - OPENCLAW_PRIMARY_MODEL=${OPENCLAW_PRIMARY_MODEL:-}
-      # Auth
-      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
-      - AUTH_PASSWORD=${AUTH_PASSWORD:?set AUTH_PASSWORD in Dokploy Environment Settings}
-      # Gateway
+      # Gateway. The token is the auth boundary — there is no nginx / basic auth.
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:?set OPENCLAW_GATEWAY_TOKEN in Dokploy Environment Settings}
-      - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-loopback}
-      - OPENCLAW_STATE_DIR=${OPENCLAW_STATE_DIR:-/data/.openclaw}
-      - OPENCLAW_WORKSPACE_DIR=${OPENCLAW_WORKSPACE_DIR:-/data/workspace}
-      # Declarative config file (mounted writable below). Holds settings with no
-      # env-var equivalent, e.g. agents.defaults.memorySearch.enabled=false.
+      # The gateway must listen on the container's external interface so Docker can
+      # forward the published port below — a pure in-container loopback bind is NOT
+      # reachable through `ports:`. Exposure still stays loopback-on-HOST (see ports).
+      # NOTE: confirm the exact value the official image expects (e.g. all / lan / 0.0.0.0).
+      - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-all}
+      # Declarative config file (mounted writable below). Holds model, channels,
+      # tools.deny and agent defaults — everything with an openclaw.json home.
+      # NOTE: confirm the official var name (OPENCLAW_CONFIG_PATH vs OPENCLAW_CONFIG_DIR).
       - OPENCLAW_CONFIG_PATH=${OPENCLAW_CONFIG_PATH:-/config/openclaw.json}
-      # CORS
-      - OPENCLAW_ALLOWED_ORIGINS=${OPENCLAW_ALLOWED_ORIGINS:-}
-      # Browser sidecar (static, in-network)
-      - BROWSER_CDP_URL=http://browser:9222
-      # Channels (optional)
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
-      - TELEGRAM_DM_POLICY=${TELEGRAM_DM_POLICY:-allowlist}
-      - TELEGRAM_ALLOW_FROM=${TELEGRAM_ALLOW_FROM:-}
-      - WHATSAPP_ENABLED=${WHATSAPP_ENABLED:-false}
-      - WHATSAPP_DM_POLICY=${WHATSAPP_DM_POLICY:-allowlist}
-      - WHATSAPP_ALLOW_FROM=${WHATSAPP_ALLOW_FROM:-}
     volumes:
-      - openclaw-data:/data
+      # State, workspace and auth secrets persist here (official layout under
+      # /home/node/.openclaw). The image runs as non-root `node` (UID 1000), so this
+      # volume must be writable by UID 1000.
+      - openclaw-data:/home/node/.openclaw
       # Declarative config (see OPENCLAW_CONFIG_PATH above), holding openclaw.json.
-      # A DIRECTORY is mounted at /config — not the single file — because openclaw's
-      # configure.js saves via atomic rename() (write tmp, rename over target), which
-      # fails with EBUSY on a single-file bind mount (can't rename over a mountpoint).
-      # The file lives in Dokploy's persistent files/ dir (created via the Dokploy UI,
-      # out of git) so openclaw's boot rewrite is writable and survives redeploys. The
-      # tracked openclaw.example.json is the reference for its contents.
+      # A DIRECTORY is mounted at /config — not the single file — because openclaw
+      # rewrites the config in place at boot via an atomic rename() (write tmp, rename
+      # over target), which fails with EBUSY on a single-file bind mount. The file
+      # lives in Dokploy's persistent files/ dir (created via the Dokploy UI as a File
+      # Mount, out of git) so the boot rewrite is writable and survives redeploys; the
+      # tracked openclaw.example.json is the reference. Ensure ../files/config is
+      # writable by UID 1000.
       - ../files/config:/config
     networks:
       - dokploy-network
-    # The Control UI is an admin surface, never public. There is no public route:
-    # do NOT add a Dokploy Domain for this app, and remove any existing one in the
-    # Domains UI. nginx (port 8080, basic auth) is published to the host loopback
-    # only, so it is reachable solely over an SSH tunnel (see docs/deploy.md). The
-    # gateway stays on loopback 18789 inside the container, behind nginx. The
-    # service remains on dokploy-network only to reach the browser sidecar.
+    # The Control UI is an admin surface, served directly by the gateway on 18789.
+    # There is no nginx and no public route: do NOT add a Dokploy Domain for this app.
+    # The port is published to the HOST LOOPBACK only, reached over an SSH tunnel (see
+    # docs/deploy.md); the gateway token authenticates the session. The service stays
+    # on dokploy-network for Dokploy compatibility — the token, not the network, is the
+    # auth boundary. Now that the browser sidecar is gone you may move it to a private
+    # network for extra isolation.
     ports:
-      - "127.0.0.1:8080:8080"
-
-  # Full Chrome (Kasm/noVNC) sidecar exposing a CDP endpoint so OpenClaw can drive
-  # a real browser, reachable in-network as http://browser:9222. The web desktop
-  # (:6901) allows manual login for auth-gated sites. Heavy: large image with
-  # meaningful RAM and CPU cost. Kasm publishes no `latest` tag — pin a version.
-  # CHROME_ARGS is required: Kasm's Chrome otherwise binds CDP to localhost, so the
-  # openclawsimo container could not reach http://browser:9222.
-  browser:
-    image: kasmweb/chrome:1.16.0
-    restart: unless-stopped
-    logging: *default-logging
-    environment:
-      - CHROME_ARGS=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --remote-allow-origins=*
-    volumes:
-      - browser-profile:/home/kasm-user
-    networks:
-      - dokploy-network
-    expose:
-      - "9222"
+      - "127.0.0.1:18789:18789"
 
 volumes:
   openclaw-data:
-  browser-profile:
 
 networks:
   dokploy-network:

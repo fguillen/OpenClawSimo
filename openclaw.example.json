@@ -1,6 +1,7 @@
 {
   "agents": {
     "defaults": {
+      "model": "anthropic/claude-sonnet-5",
       "memorySearch": {
         "enabled": false
       },
@@ -13,23 +14,17 @@
       }
     }
   },
-  "tools": {
-    "deny": [
-      "qqbot_remind",
-      "video_generate",
-      "music_generate",
-      "subagents",
-      "sessions_spawn",
-      "sessions_yield",
-      "sessions_send",
-      "create_goal",
-      "update_goal",
-      "get_goal"
-    ]
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "REPLACE_WITH_TELEGRAM_BOT_TOKEN",
+      "dmPolicy": "allowlist",
+      "allowFrom": ["REPLACE_WITH_ALLOWED_USER_ID"]
+    }
   },
   "gateway": {
     "controlUi": {
-      "allowedOrigins": ["http://localhost:8080"]
+      "allowedOrigins": ["http://localhost:18789"]
     }
   }
 }
