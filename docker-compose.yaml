@@ -18,6 +18,7 @@ services:
     user: "0:0"
     command: ["sh", "-c", "chown -R 1000:1000 /home/node/.openclaw /config"]
     restart: "no"
+    network_mode: none
     volumes:
       - openclaw-data:/home/node/.openclaw
       - ../files/config:/config
